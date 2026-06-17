@@ -1,0 +1,23 @@
+# Environment / secrets — never commit these
+.env
+.env.local
+
+# Claude Code local settings
+.claude/
+
+# Personal planning notes
+portfolio_project_plan.md
+
+# Python virtual environment
+.venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter checkpoint files
+.ipynb_checkpoints/
+
+# macOS noise
+.DS_Store

@@ -1,0 +1,9 @@
+region,product,sales,units
+North,Widget A,12000,150
+North,Widget B,8500,90
+South,Widget A,15000,200
+South,Widget B,6000,70
+East,Widget A,9000,120
+East,Widget B,11000,130
+West,Widget A,18000,240
+West,Widget B,7500,85

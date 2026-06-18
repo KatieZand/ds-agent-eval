@@ -86,6 +86,9 @@ def run_agent(task: str, csv_path: str) -> dict:
     # Loop exits when Claude sets stop_reason = "end_turn" (final text answer).
 
     max_iterations = 10  # Safety limit — prevents runaway loops
+    total_input_tokens = 0
+    total_output_tokens = 0
+
     for iteration in range(max_iterations):
 
         response = client.messages.create(
@@ -95,6 +98,11 @@ def run_agent(task: str, csv_path: str) -> dict:
             tools=TOOLS,
             messages=messages,
         )
+
+        # Accumulate token usage across all iterations.
+        # Each API call returns tokens for that call only, so we sum them up.
+        total_input_tokens  += response.usage.input_tokens
+        total_output_tokens += response.usage.output_tokens
 
         # Append Claude's full response to the history.
         # We store response.content (a list of blocks), not just the text,
@@ -137,7 +145,13 @@ def run_agent(task: str, csv_path: str) -> dict:
             final_answer = next(
                 block.text for block in response.content if hasattr(block, "text")
             )
-            return {"answer": final_answer, "trajectory": messages}
+            return {
+                "answer": final_answer,
+                "trajectory": messages,
+                "iterations": iteration + 1,
+                "input_tokens": total_input_tokens,
+                "output_tokens": total_output_tokens,
+            }
 
         # Claude wants to call tools — find all tool_use blocks and execute them
         tool_results = []
@@ -158,4 +172,10 @@ def run_agent(task: str, csv_path: str) -> dict:
         # Feed all tool results back as a single user turn, then loop again
         messages.append({"role": "user", "content": tool_results})
 
-    return {"answer": "[agent hit max iterations without finishing]", "trajectory": messages}
+    return {
+        "answer": "[agent hit max iterations without finishing]",
+        "trajectory": messages,
+        "iterations": max_iterations,
+        "input_tokens": total_input_tokens,
+        "output_tokens": total_output_tokens,
+    }

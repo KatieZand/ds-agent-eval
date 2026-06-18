@@ -14,6 +14,9 @@ portfolio_project_plan.md
 # Downloaded benchmark data (reproduced via scripts/download_dabench.py)
 data/dabench/
 
+# Agent run outputs and trajectories (large, reproducible by re-running)
+results/
+
 # Python cache files
 __pycache__/
 *.pyc

@@ -5,8 +5,9 @@
 # Claude Code local settings
 .claude/
 
-# Personal planning notes
+# Personal planning and internal context notes
 portfolio_project_plan.md
+CLAUDE.md
 
 # Python virtual environment
 .venv/

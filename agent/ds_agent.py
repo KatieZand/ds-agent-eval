@@ -36,23 +36,12 @@ TOOLS = [
 ]
 
 # ---------------------------------------------------------------------------
-# System prompt
+# System prompt — loaded from the agent skill file
 # ---------------------------------------------------------------------------
-# This is Claude's persistent instruction set for the whole task.
-# It stays fixed throughout the loop — this is where "skill file" ideas live.
+# Keeping instructions in a markdown file (rather than a hardcoded string)
+# makes them easier to read, edit, and iterate on without touching agent logic.
 
-SYSTEM_PROMPT = """You are a data science agent. You have access to a Python \
-code execution tool.
-
-When given a task and a CSV file path:
-1. Load the CSV with pandas and inspect it first.
-2. Write and run code to answer the task.
-3. If your code errors, read the traceback, fix the code, and try again.
-4. When you have a confident answer, reply in plain text with:
-   - The direct answer to the task
-   - A brief explanation of how you got it
-
-Only give your final answer in plain text — do not call the tool in your last turn."""
+SYSTEM_PROMPT = (Path(__file__).parent / "skills" / "data_analysis.md").read_text()
 
 # ---------------------------------------------------------------------------
 # The agent loop

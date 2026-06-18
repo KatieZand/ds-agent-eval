@@ -2,9 +2,9 @@
 Run the DS agent on a set of DABench tasks and save results + trajectories.
 
 Usage:
-    python scripts/run_eval.py --split eval    # run the 10 eval tasks
-    python scripts/run_eval.py --split dev     # run the 10 dev tasks
-    python scripts/run_eval.py --ids 24 32 70  # specific tasks only
+    python scripts/run_eval.py --split dev      # run the 20 dev tasks (use freely)
+    python scripts/run_eval.py --split holdout  # FINAL ONLY — do not run until eval is complete
+    python scripts/run_eval.py --ids 24 32 70   # specific tasks only
 
 Output:
     results/<split>_<timestamp>.json              — per-task summary (answers, cost, tokens)
@@ -22,9 +22,33 @@ load_dotenv()
 
 # ---------------------------------------------------------------------------
 # Task subset definitions
+#
+# DEV (20):     Use freely — debug, tune, analyze failure modes.
+#               Original 10 dev tasks + 10 formerly-eval tasks (now contaminated
+#               because we ran them and tuned the skill file based on results).
+#
+# HOLDOUT (60): Never run until the eval framework is complete and we are ready
+#               to report final numbers. 20 easy / 20 medium / 20 hard,
+#               spread across 31 CSV files. Treat as sealed.
 # ---------------------------------------------------------------------------
-DEV_IDS  = [0, 9, 18, 5, 11, 62, 7, 23, 28, 39]
-EVAL_IDS = [24, 32, 55, 27, 66, 69, 70, 77, 118, 124]
+DEV_IDS = [
+    # original dev (10)
+    0, 9, 18, 5, 11, 62, 7, 23, 28, 39,
+    # formerly eval — now contaminated, moved to dev (10)
+    24, 32, 55, 27, 66, 69, 70, 77, 118, 124,
+]
+
+HOLDOUT_IDS = [
+    # easy (20)
+    10, 19, 25, 33, 56, 64, 71, 114, 123, 129,
+    139, 207, 216, 234, 243, 255, 268, 278, 320, 349,
+    # medium (20)
+    6, 14, 34, 75, 105, 116, 130, 140, 209, 219,
+    244, 252, 269, 277, 298, 337, 360, 375, 408, 418,
+    # hard (20)
+    30, 109, 125, 133, 142, 210, 220, 249, 271, 282,
+    297, 326, 355, 363, 376, 413, 419, 428, 452, 480,
+]
 
 # Pricing for claude-sonnet-4-6 (per million tokens, June 2026)
 PRICE_INPUT_PER_M  = 3.00
@@ -182,12 +206,20 @@ def run_tasks(task_ids: list, questions: dict, labels: dict, split: str) -> dict
 
 def main():
     parser = argparse.ArgumentParser(description="Run the DS agent on DABench tasks.")
-    parser.add_argument("--split", choices=["dev", "eval"], default="eval")
+    parser.add_argument("--split", choices=["dev", "holdout"], default="dev",
+                        help="'dev' = 20 tasks, use freely. 'holdout' = 60 tasks, FINAL RUN ONLY.")
     parser.add_argument("--ids", nargs="+", type=int,
                         help="Run only these specific task IDs (overrides --split)")
     args = parser.parse_args()
 
-    task_ids = args.ids if args.ids else (DEV_IDS if args.split == "dev" else EVAL_IDS)
+    if args.split == "holdout" and not args.ids:
+        confirm = input("WARNING: You are about to run the holdout set. This should only happen "
+                        "once, when the eval framework is complete. Type 'yes' to confirm: ")
+        if confirm.strip().lower() != "yes":
+            print("Aborted.")
+            return
+
+    task_ids = args.ids if args.ids else (DEV_IDS if args.split == "dev" else HOLDOUT_IDS)
 
     print(f"Running {len(task_ids)} tasks from '{args.split}' split")
     print(f"Task IDs: {task_ids}")

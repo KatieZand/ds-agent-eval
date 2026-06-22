@@ -39,8 +39,9 @@ def values_match(extracted: str, expected: str) -> bool:
     Compare two values flexibly.
 
     Tries numeric comparison first so "34.650" matches "34.65".
-    Falls back to case-insensitive string comparison for categoricals
-    like "linear" or "nonlinear".
+    For comma-separated lists (e.g. "0.0, 1.0, 0.06"), splits and
+    compares each element numerically in order.
+    Falls back to case-insensitive string comparison for categoricals.
 
     >>> values_match("34.65", "34.65")
     True
@@ -52,9 +53,21 @@ def values_match(extracted: str, expected: str) -> bool:
     True
     >>> values_match("linear", "nonlinear")
     False
+    >>> values_match("0.0, 1.0, 0.0629", "0.00, 1.00, 0.0629")
+    True
+    >>> values_match("314, 577", "314, 577")
+    True
     """
     extracted = extracted.strip()
     expected  = expected.strip()
+
+    # Comma-separated list — split and compare element by element
+    if "," in expected:
+        ext_parts = [v.strip() for v in extracted.split(",")]
+        exp_parts = [v.strip() for v in expected.split(",")]
+        if len(ext_parts) != len(exp_parts):
+            return False
+        return all(values_match(e, x) for e, x in zip(ext_parts, exp_parts))
 
     try:
         return float(extracted) == float(expected)

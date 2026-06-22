@@ -77,6 +77,19 @@ def test_integer_matches_float():
     # Ground truth "2081990" should match extracted "2081990.0"
     assert values_match("2081990.0", "2081990") is True
 
+def test_comma_separated_numeric_list():
+    # DABench sometimes puts multi-value answers in one tag: "0.00, 1.00, 0.06"
+    assert values_match("0.0, 1.0, 0.0629", "0.00, 1.00, 0.0629") is True
+
+def test_comma_separated_integer_list():
+    assert values_match("314, 577", "314, 577") is True
+
+def test_comma_separated_wrong_length():
+    assert values_match("1.0, 2.0", "1.0, 2.0, 3.0") is False
+
+def test_comma_separated_wrong_value():
+    assert values_match("0.0, 2.0, 0.0629", "0.00, 1.00, 0.0629") is False
+
 
 # ---------------------------------------------------------------------------
 # score_task

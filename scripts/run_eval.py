@@ -23,19 +23,26 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # Task subset definitions
 #
-# DEV (20):     Use freely — debug, tune, analyze failure modes.
-#               Original 10 dev tasks + 10 formerly-eval tasks (now contaminated
-#               because we ran them and tuned the skill file based on results).
+# DEV (20):      Use freely — debug, tune, analyze failure modes.
+#                Original 10 dev tasks + 10 formerly-eval tasks (contaminated).
 #
-# HOLDOUT (60): Never run until the eval framework is complete and we are ready
-#               to report final numbers. 20 easy / 20 medium / 20 hard,
-#               spread across 31 CSV files. Treat as sealed.
+# HARD_DEV (12): Hard-only expansion of the dev set. Selected randomly (seed=42)
+#                from hard tasks not in DEV_IDS or HOLDOUT_IDS. Run to get richer
+#                failure data on hard tasks specifically.
+#
+# HOLDOUT (60):  Never run until the eval framework is complete. Stratified random
+#                (seed=42): 20 easy / 20 medium / 20 hard. Treat as sealed.
 # ---------------------------------------------------------------------------
 DEV_IDS = [
     # original dev (10)
     0, 9, 18, 5, 11, 62, 7, 23, 28, 39,
     # formerly eval — now contaminated, moved to dev (10)
     24, 32, 55, 27, 66, 69, 70, 77, 118, 124,
+]
+
+HARD_DEV_IDS = [
+    # Random sample (seed=42) of hard tasks not in DEV_IDS or HOLDOUT_IDS
+    109, 144, 178, 214, 282, 297, 308, 574, 604, 665, 685, 732,
 ]
 
 HOLDOUT_IDS = [
@@ -208,8 +215,9 @@ def run_tasks(task_ids: list, questions: dict, labels: dict, split: str) -> dict
 
 def main():
     parser = argparse.ArgumentParser(description="Run the DS agent on DABench tasks.")
-    parser.add_argument("--split", choices=["dev", "holdout"], default="dev",
-                        help="'dev' = 20 tasks, use freely. 'holdout' = 60 tasks, FINAL RUN ONLY.")
+    parser.add_argument("--split", choices=["dev", "hard_dev", "holdout"], default="dev",
+                        help="'dev'=20 mixed tasks. 'hard_dev'=12 hard-only tasks. "
+                             "'holdout'=60 tasks, FINAL RUN ONLY.")
     parser.add_argument("--ids", nargs="+", type=int,
                         help="Run only these specific task IDs (overrides --split)")
     args = parser.parse_args()
@@ -221,7 +229,8 @@ def main():
             print("Aborted.")
             return
 
-    task_ids = args.ids if args.ids else (DEV_IDS if args.split == "dev" else HOLDOUT_IDS)
+    split_map = {"dev": DEV_IDS, "hard_dev": HARD_DEV_IDS, "holdout": HOLDOUT_IDS}
+    task_ids = args.ids if args.ids else split_map[args.split]
 
     print(f"Running {len(task_ids)} tasks from '{args.split}' split")
     print(f"Task IDs: {task_ids}")

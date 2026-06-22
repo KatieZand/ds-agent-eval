@@ -335,5 +335,14 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python eval/trajectory.py <traj_dir> [results_json]")
         sys.exit(1)
-    summary = score_trajectories(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else None)
+
+    traj_dir     = Path(sys.argv[1])
+    results_path = sys.argv[2] if len(sys.argv) > 2 else None
+    summary      = score_trajectories(traj_dir, results_path)
     print_report(summary)
+
+    # Derive output filename from the trajectory directory name
+    # e.g. trajectories/dev_20260618_153514 → results/trajectory_dev_20260618_153514.json
+    out_path = traj_dir.parent.parent / f"trajectory_{traj_dir.name}.json"
+    out_path.write_text(json.dumps(summary, indent=2))
+    print(f"\nSaved: {out_path}")

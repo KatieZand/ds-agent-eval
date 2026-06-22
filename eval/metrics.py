@@ -223,5 +223,12 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python eval/metrics.py <results_json_path>")
         sys.exit(1)
-    summary = score_results(sys.argv[1])
+
+    results_path = Path(sys.argv[1])
+    summary = score_results(results_path)
     print_report(summary)
+
+    # Save scored output next to the results file with a "metrics_" prefix
+    out_path = results_path.parent / f"metrics_{results_path.name}"
+    out_path.write_text(json.dumps(summary, indent=2))
+    print(f"\nSaved: {out_path}")

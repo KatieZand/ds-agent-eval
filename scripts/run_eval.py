@@ -23,15 +23,12 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # Task subset definitions
 #
-# DEV (20):      Use freely — debug, tune, analyze failure modes.
-#                Original 10 dev tasks + 10 formerly-eval tasks (contaminated).
-#
-# HARD_DEV (12): Hard-only expansion of the dev set. Selected randomly (seed=42)
-#                from hard tasks not in DEV_IDS or HOLDOUT_IDS. Run to get richer
-#                failure data on hard tasks specifically.
-#
-# HOLDOUT (60):  Never run until the eval framework is complete. Stratified random
-#                (seed=42): 20 easy / 20 medium / 20 hard. Treat as sealed.
+# DEV (20):          Use freely — mixed easy/medium/hard, debug and tune.
+# HARD_DEV (12):     Hard-only expansion, for failure mode analysis.
+# HARD_DEV_ALL (20): All hard dev tasks — the 8 hard tasks from DEV_IDS plus
+#                    HARD_DEV_IDS. Use this split for model comparison runs
+#                    (e.g. Sonnet vs Haiku) to keep the task set identical.
+# HOLDOUT (60):      Sealed — 20 easy / 20 medium / 20 hard. Final run only.
 # ---------------------------------------------------------------------------
 DEV_IDS = [
     # original dev (10)
@@ -44,6 +41,10 @@ HARD_DEV_IDS = [
     # Random sample (seed=42) of hard tasks not in DEV_IDS or HOLDOUT_IDS
     109, 144, 178, 214, 282, 297, 308, 574, 604, 665, 685, 732,
 ]
+
+# All 20 hard dev tasks — used for model comparison experiments.
+# Hard tasks from DEV_IDS + HARD_DEV_IDS, nothing else.
+HARD_DEV_ALL_IDS = [7, 23, 28, 39, 70, 77, 118, 124] + HARD_DEV_IDS
 
 HOLDOUT_IDS = [
     # Stratified random sample (seed=42): 20 easy / 20 medium / 20 hard
@@ -108,22 +109,27 @@ def load_dabench():
     return questions, labels
 
 
-def run_tasks(task_ids: list, questions: dict, labels: dict, split: str) -> dict:
+def run_tasks(task_ids: list, questions: dict, labels: dict, split: str,
+              model: str = "claude-sonnet-4-6") -> dict:
     """
     Run the agent on each task. For each task, save:
       - A summary record in the main results JSON (answer, cost, tokens, iterations)
-      - A full trajectory JSON in results/trajectories/<split>_<timestamp>/task_<id>.json
+      - A full trajectory JSON in results/trajectories/<split>_<model>_<timestamp>/
+
+    The model name is embedded in filenames and the results JSON so Sonnet and
+    Haiku (or any other model) runs never overwrite each other.
 
     Correctness scoring is intentionally NOT done here — that's the evaluator's job.
-    This script only produces raw agent outputs.
     """
     from agent.ds_agent import run_agent
 
     RESULTS_DIR.mkdir(exist_ok=True)
 
-    # Create a timestamped folder for this run's trajectories
-    timestamp      = datetime.now().strftime("%Y%m%d_%H%M%S")
-    traj_dir       = RESULTS_DIR / "trajectories" / f"{split}_{timestamp}"
+    # Shorten the model name for use in filenames (e.g. "claude-sonnet-4-6" → "sonnet")
+    model_tag = model.split("-")[1] if "-" in model else model
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    traj_dir  = RESULTS_DIR / "trajectories" / f"{split}_{model_tag}_{timestamp}"
     traj_dir.mkdir(parents=True, exist_ok=True)
 
     results = []
@@ -150,7 +156,7 @@ def run_tasks(task_ids: list, questions: dict, labels: dict, split: str) -> dict
         )
 
         start   = time.time()
-        result  = run_agent(task=task_prompt, csv_path=str(csv_path))
+        result  = run_agent(task=task_prompt, csv_path=str(csv_path), model=model)
         elapsed = round(time.time() - start, 1)
 
         task_cost = (
@@ -204,6 +210,7 @@ def run_tasks(task_ids: list, questions: dict, labels: dict, split: str) -> dict
     return {
         "timestamp":           timestamp,
         "split":               split,
+        "model":               model,
         "n_tasks":             len(results),
         "total_input_tokens":  total_input_tokens,
         "total_output_tokens": total_output_tokens,
@@ -215,9 +222,15 @@ def run_tasks(task_ids: list, questions: dict, labels: dict, split: str) -> dict
 
 def main():
     parser = argparse.ArgumentParser(description="Run the DS agent on DABench tasks.")
-    parser.add_argument("--split", choices=["dev", "hard_dev", "holdout"], default="dev",
-                        help="'dev'=20 mixed tasks. 'hard_dev'=12 hard-only tasks. "
+    parser.add_argument("--split",
+                        choices=["dev", "hard_dev", "hard_dev_all", "holdout"],
+                        default="dev",
+                        help="'dev'=20 mixed. 'hard_dev'=12 hard. "
+                             "'hard_dev_all'=20 hard (for model comparison). "
                              "'holdout'=60 tasks, FINAL RUN ONLY.")
+    parser.add_argument("--model", default="claude-sonnet-4-6",
+                        help="Model ID to use (e.g. claude-haiku-4-5). "
+                             "Only the model changes — everything else is identical.")
     parser.add_argument("--ids", nargs="+", type=int,
                         help="Run only these specific task IDs (overrides --split)")
     args = parser.parse_args()
@@ -229,16 +242,23 @@ def main():
             print("Aborted.")
             return
 
-    split_map = {"dev": DEV_IDS, "hard_dev": HARD_DEV_IDS, "holdout": HOLDOUT_IDS}
+    split_map = {
+        "dev":          DEV_IDS,
+        "hard_dev":     HARD_DEV_IDS,
+        "hard_dev_all": HARD_DEV_ALL_IDS,
+        "holdout":      HOLDOUT_IDS,
+    }
     task_ids = args.ids if args.ids else split_map[args.split]
 
-    print(f"Running {len(task_ids)} tasks from '{args.split}' split")
+    model_tag = args.model.split("-")[1] if "-" in args.model else args.model
+    print(f"Running {len(task_ids)} tasks | split='{args.split}' | model={args.model}")
     print(f"Task IDs: {task_ids}")
 
     questions, labels = load_dabench()
-    summary = run_tasks(task_ids, questions, labels, split=args.split)
+    summary = run_tasks(task_ids, questions, labels, split=args.split, model=args.model)
 
-    out_path = RESULTS_DIR / f"{args.split}_{summary['timestamp']}.json"
+    # Filename encodes both split and model so runs never overwrite each other
+    out_path = RESULTS_DIR / f"{args.split}_{model_tag}_{summary['timestamp']}.json"
     out_path.write_text(json.dumps(summary, indent=2))
 
     print(f"\n{'='*60}")

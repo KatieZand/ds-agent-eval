@@ -47,7 +47,7 @@ SYSTEM_PROMPT = (Path(__file__).parent / "skills" / "data_analysis.md").read_tex
 # The agent loop
 # ---------------------------------------------------------------------------
 
-def run_agent(task: str, csv_path: str) -> dict:
+def run_agent(task: str, csv_path: str, model: str = "claude-sonnet-4-6") -> dict:
     """
     Run the data science agent on a task.
 
@@ -81,7 +81,7 @@ def run_agent(task: str, csv_path: str) -> dict:
     for iteration in range(max_iterations):
 
         response = client.messages.create(
-            model="claude-sonnet-4-6",
+            model=model,
             max_tokens=4096,
             system=SYSTEM_PROMPT,
             tools=TOOLS,

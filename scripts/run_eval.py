@@ -60,6 +60,23 @@ HOLDOUT_IDS = [
     523, 530, 590, 647, 674, 722, 723, 724, 734, 736,
 ]
 
+# Hard-only holdout: the 20 hard tasks from HOLDOUT_IDS
+HARD_HOLDOUT_IDS = [
+    137, 177, 210, 224, 249, 310, 378, 423, 431, 521,
+    523, 530, 590, 647, 674, 722, 723, 724, 734, 736,
+]
+
+# 20 additional hard tasks never seen in any prior split (seed=42)
+# Drawn from hard tasks not in DEV_IDS, HARD_DEV_IDS, or HOLDOUT_IDS
+NEW_HARD_IDS = [
+    30, 111, 125, 220, 222, 271, 273, 355, 363, 376,
+    413, 415, 424, 496, 593, 662, 669, 673, 725, 733,
+]
+
+# Final hard evaluation: 40 hard tasks = hard holdout + new hard tasks
+# Use this for the final model comparison run.
+HARD_FINAL_IDS = sorted(HARD_HOLDOUT_IDS + NEW_HARD_IDS)
+
 # Pricing for claude-sonnet-4-6 (per million tokens, June 2026)
 PRICE_INPUT_PER_M  = 3.00
 PRICE_OUTPUT_PER_M = 15.00
@@ -223,21 +240,29 @@ def run_tasks(task_ids: list, questions: dict, labels: dict, split: str,
 def main():
     parser = argparse.ArgumentParser(description="Run the DS agent on DABench tasks.")
     parser.add_argument("--split",
-                        choices=["dev", "hard_dev", "hard_dev_all", "holdout"],
+                        choices=["dev", "hard_dev", "hard_dev_all", "holdout",
+                                 "hard_holdout", "new_hard", "hard_final"],
                         default="dev",
                         help="'dev'=20 mixed. 'hard_dev'=12 hard. "
-                             "'hard_dev_all'=20 hard (for model comparison). "
-                             "'holdout'=60 tasks, FINAL RUN ONLY.")
+                             "'hard_dev_all'=20 hard (model comparison). "
+                             "'holdout'=60 tasks (FINAL, all difficulties). "
+                             "'hard_holdout'=20 hard tasks from holdout. "
+                             "'new_hard'=20 fresh hard tasks (never seen). "
+                             "'hard_final'=40 hard tasks (hard_holdout + new_hard).")
     parser.add_argument("--model", default="claude-sonnet-4-6",
                         help="Model ID to use (e.g. claude-haiku-4-5). "
                              "Only the model changes — everything else is identical.")
     parser.add_argument("--ids", nargs="+", type=int,
                         help="Run only these specific task IDs (overrides --split)")
+    parser.add_argument("--yes", "-y", action="store_true",
+                        help="Skip confirmation prompt for holdout/hard_final splits")
     args = parser.parse_args()
 
-    if args.split == "holdout" and not args.ids:
-        confirm = input("WARNING: You are about to run the holdout set. This should only happen "
-                        "once, when the eval framework is complete. Type 'yes' to confirm: ")
+    if args.split in ("holdout", "hard_final") and not args.ids and not args.yes:
+        confirm = input(
+            f"WARNING: You are about to run the '{args.split}' split. "
+            "Type 'yes' to confirm: "
+        )
         if confirm.strip().lower() != "yes":
             print("Aborted.")
             return
@@ -247,6 +272,9 @@ def main():
         "hard_dev":     HARD_DEV_IDS,
         "hard_dev_all": HARD_DEV_ALL_IDS,
         "holdout":      HOLDOUT_IDS,
+        "hard_holdout": HARD_HOLDOUT_IDS,
+        "new_hard":     NEW_HARD_IDS,
+        "hard_final":   HARD_FINAL_IDS,
     }
     task_ids = args.ids if args.ids else split_map[args.split]
 

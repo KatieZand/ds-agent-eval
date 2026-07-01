@@ -1,6 +1,6 @@
 # DS Agent Eval — Four-Component Evaluation Framework
 
-This project evaluates a Claude-powered data science agent on InfiAgent-DABench, a benchmark of real-world tabular data analysis tasks. The headline finding is that 40–50% of hard-task failures trace to benchmark errors or ambiguity rather than agent errors — raising pointed questions about what "hard" evaluation actually measures.
+This project evaluates a Claude-powered data science agent on InfiAgent-DABench, a benchmark of real-world tabular data analysis tasks. The headline finding is that 40–50% of hard-task failures trace to benchmark underspecification or ambiguity rather than agent errors — raising pointed questions about what "hard" evaluation actually measures.
 
 ## The agent and the benchmark
 
@@ -12,9 +12,9 @@ This project evaluates a Claude-powered data science agent on InfiAgent-DABench,
 
 - **Haiku costs more than Sonnet despite cheaper per-token rates.** Haiku uses more steps (median 3 vs. 2) and more tokens per step, erasing its rate advantage: $3.28 vs. $2.19 total for the same 40 tasks.
 
-- **40–50% of hard-task failures are benchmark errors, not agent errors.** Classifying every failure by mechanism reveals that 4/10 Sonnet failures and 4/8 Haiku failures stem from task ambiguity or underspecification — not from the agent making a mistake.
+- **40–50% of hard-task failures are underspecification, not agent errors.** Classifying every failure by mechanism reveals that 4/10 Sonnet failures and 4/8 Haiku failures stem from task ambiguity or underspecification — not from the agent making a mistake.
 
-- **TQ(failed) ≈ TQ(passed), validating the outcome-blind trajectory judge.** Sonnet's failed tasks scored higher on trajectory quality than its passed tasks (2.30 vs. 2.13); Haiku's were essentially equal (2.00 vs. 2.03). The agent's process on many "failed" tasks was clean — the benchmark was wrong.
+- **TQ(failed) ≈ TQ(passed), validating the outcome-blind trajectory judge.** Sonnet's failed tasks scored higher on trajectory quality than its passed tasks (2.30 vs. 2.13); Haiku's were essentially equal (2.00 vs. 2.03). The agent's process on many "failed" tasks was clean — the task was underspecified, not the agent at fault.
 
 ---
 

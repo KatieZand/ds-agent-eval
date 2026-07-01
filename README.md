@@ -59,6 +59,18 @@ Two API calls per task — deliberately:
 
 The judge scores OQ 2→3 generously; the human draws a sharper line on answer quality vs. validation. No TQ disagreement exceeded 1 point. Both patterns are detectable and explainable — not random noise.
 
+## Evaluation as measurement
+
+This project treats the evaluation as a **measurement instrument**, not a one-shot scoring task. That framing — from a background in measurement science — drove most of the methodological choices, and it's what separates "we ran an LLM judge" from a result you can actually trust.
+
+It shows up first in **guarding the reference standard**. Midway through development I realized the original evaluation set had been run and inspected during iteration — contaminating it. Rather than proceed, I demoted it to a dev set, drew a fresh blind holdout (selected by metadata only, contents uninspected), and added a run-guard against accidentally scoring the sealed set. A contaminated instrument gives precise-looking readings that mean nothing; catching this mattered more than the convenience of proceeding.
+
+It shows up next in **calibrating the judge before trusting it**. An LLM judge is an instrument with unknown bias until validated, so I scored a blind human sample and measured agreement (weighted κ, ordinal α). The result wasn't "the judge is right" — it was a *characterization*: the judge is generous at the output-quality 2→3 boundary and strict on the trajectory redundancy gate, with 100% within-1 agreement. Knowing the *direction and size* of an instrument's bias is what makes its readings usable; treating an uncalibrated judge as ground truth is the error the whole exercise avoids.
+
+Finally, it shapes **when to re-validate**. The judge was validated on dev and applied to the same-distribution holdout without re-validation — deliberately. The instrument is deterministic (temperature=0, fixed prompt, fixed model version) and the operating conditions (task difficulty, evaluated models, judge version) were unchanged, so the dev validation transfers. In production, the same instrument would need re-validation against fresh human labels — on any change to the judge model version, the evaluated models, or the input distribution, and on a regular schedule as a backstop, since an LLM judge's calibration can shift silently when conditions change.
+
+The through-line: an evaluation is only as trustworthy as the instrument producing it, and instruments must be guarded from contamination, calibrated against a reference, and re-validated when conditions change.
+
 ## Results on the test set (40 hard tasks)
 
 ### Overall metrics
@@ -157,8 +169,27 @@ PYTHONPATH=. python -m pytest eval/test_metrics.py eval/test_trajectory.py -v
 
 - **Skill file tuned on Sonnet failures.** The agent's system prompt was revised after observing Sonnet's failure modes on the dev set. The hard-final test set is clean (never seen during development), but the comparison is not fully zero-shot for Sonnet.
 - **Bounded trajectory length.** The agent stops at 10 iterations. Tasks requiring more steps are penalized by the completion gate; task 424 illustrates where this creates a perverse outcome.
-- **LLM judge noise.** At temperature=0, the judge is reproducible but not perfectly calibrated. Human-judge agreement is moderate (κ=0.59/0.33). OQ and TQ scores are coarse signals, not fine-grained measurements.
-- **One benchmark.** DABench covers tabular data analysis in Python. Results do not generalize to other domains or modalities.
+- **Sample size.** The test set is 40 hard tasks per model. At N=40, 3–4 swing tasks can move the pass-rate ranking; point estimates are reported with that caveat.
+- **LLM judge noise.** At temperature=0, the judge is reproducible but not perfectly calibrated. Human-judge agreement is moderate (κ=0.59/0.33); OQ and TQ scores are coarse signals, not fine-grained measurements. Validation was run on dev (n=12) and transferred to holdout without re-validation — see *Scope and future work*.
+- **One benchmark.** DABench covers tabular data analysis in Python; findings don't generalize beyond this domain without re-running — see *Scope and future work*.
+
+## Scope and future work
+
+Several extensions were considered and deliberately deferred to ship a complete, validated result rather than an endless one. Each was a scope decision with a reason, not an oversight:
+
+**Larger holdout / more models.** The primary test set is 40 hard tasks (N=20 per model), where 3–4 swing tasks can move the pass-rate ranking. A larger holdout would tighten confidence intervals, and a third capability tier (or a non-Claude agent) would strengthen the capability-comparison claim. Deferred because the current N is sufficient to characterize *failure modes and process differences* — the project's actual thesis — even if not to make fine-grained ranking claims.
+
+**Graceful-termination affordance.** Task 424 exposed that the agent has no sanctioned way to declare a task infeasible — it must either produce an answer or hit the iteration limit. Giving the agent an explicit "I cannot complete this, because X" action would let the completion gate distinguish principled non-completion from flailing, and would let the eval *credit* correct refusal. This is the single most valuable next step, but it requires changing the agent and re-running, so it was scoped out of this iteration.
+
+**Sharper redundancy attribution.** The trajectory rubric's efficiency criterion penalizes redundant steps (e.g. repeated CSV reloads), but doesn't fully distinguish redundancy the subprocess-isolation scaffold *forces* from redundancy that is genuinely avoidable. A cleaner version would separate scaffold-necessitated re-establishment from true waste.
+
+**Holdout judge re-validation.** Judge validation was performed on dev (n=12) and transferred to the same-distribution holdout rather than repeated on it (see *Evaluation as measurement*). A larger validation set, and a fresh holdout validation, would tighten the agreement estimates — particularly for trajectory quality, where n=12 leaves the κ estimate noisy.
+
+**Separating "underspecified" from "wrong ground truth."** The `task_ambiguity` category currently groups underspecified tasks with genuinely wrong ground truth. Only one case (dev task 297) was independently verified as wrong GT; the holdout `task_ambiguity` failures are all underspecification. Reporting these as separate sub-counts would make the "≈40–50% of failures are not the agent's fault" claim even more precise.
+
+**Broader benchmark coverage.** DABench covers Python tabular data analysis. The framework (verifiable + trajectory + taxonomy + judge) is domain-general, but the specific findings don't transfer to other modalities without re-running.
+
+The consistent principle: validate the core rigorously, ship it, and document the extensions honestly — rather than expanding scope until nothing ships.
 
 ---
 

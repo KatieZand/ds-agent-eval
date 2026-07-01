@@ -631,8 +631,8 @@ def main():
     parser.add_argument("traj_dirs", nargs="*", metavar="traj_dir",
                         help="Trajectory directories to search (optional if trajectory_file "
                              "paths in the results JSON are still valid)")
-    parser.add_argument("--model", default="gemini-flash-latest",
-                        help="Gemini model name (default: gemini-flash-latest)")
+    parser.add_argument("--model", default="gemini-3.1-flash-lite",
+                        help="Gemini model name (default: gemini-3.1-flash-lite)")
     parser.add_argument("--call-delay", dest="call_delay", type=float, default=15.0,
                         help="Seconds to sleep after every API call (default: 15). "
                              "Controls RPM. Free tier (5 RPM): use 15. "

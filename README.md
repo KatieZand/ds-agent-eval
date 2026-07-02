@@ -134,7 +134,7 @@ data/
 
 ```bash
 # Clone and set up
-git clone <this-repo>
+git clone https://github.com/KatieZand/ds-agent-eval
 cd ds-agent-eval
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
